@@ -3,11 +3,15 @@
 
 #include <stdlib.h>
 
+#define S_WASM_INDEX 0x88
+
 typedef uint32_t u32;
 
 typedef struct _vector_element vector_element_t;
 typedef struct _vector vector_t;
 typedef struct _section section_t;
+
+enum vectype {typed, indices};
 
 typedef struct {
   unsigned char foo; /* XXX: NYI */
@@ -23,6 +27,7 @@ struct _vector_element {
   unsigned char type;
   union {
     functype_t *func;
+    u32 index;
     /* other types are NYI */
   };
   vector_element_t *next;

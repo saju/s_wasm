@@ -3,7 +3,7 @@
 #include <string.h>
 #include "s_wasm.h"
 
-int read_vector(FILE *fp, vector_t **out_vec);
+int read_vector(FILE *fp, enum vectype vtype, vector_t **out_vec);
 
 int read_many_bytes(FILE *fp, size_t size, unsigned char *buffer) {
   size_t read_b;
@@ -101,12 +101,12 @@ int read_functype(FILE *fp, functype_t **out_func) {
   f->parameters = NULL;
   f->results = NULL;
 
-  if (!read_vector(fp, &parameters))
+  if (!read_vector(fp, 1, &parameters))
     return 0;
 
   f->parameters = parameters;
 
-  if (!read_vector(fp, &results))
+  if (!read_vector(fp, 1, &results))
     return 0;
 
   f->results = results;
@@ -134,7 +134,7 @@ int __read_v_element(FILE *fp, unsigned char elem_type, vector_element_t **out_e
     /* i32 types do not have internal structure */
     break;
   default:
-    printf("NYI - v_element type %#x", e->type);
+    printf("NYI - v_element type %#x\n", e->type);
     return 0;
   }
 
@@ -142,7 +142,28 @@ int __read_v_element(FILE *fp, unsigned char elem_type, vector_element_t **out_e
   return 1;
 }
     
-  
+int read_vector_index(FILE *fp, vector_element_t **out_element) {
+  /* 
+   * vec(indextypes) is grrr. indextypes don't have an type encoding byte in front. So we 
+   * cannot use read_vector_element() to build the vector 
+   *
+   * XXX: significant optimization opportunity exists here .. using linked lists to store the indices
+   * is significant overhead. This should be an array.
+   */
+  vector_element_t *e;
+  u32 index;
+
+  e = malloc(sizeof(vector_element_t));
+  e->start_offset = ftell(fp);
+  e->type = S_WASM_INDEX;
+
+  if (!read_u32(fp, &index))
+    return 0;
+
+  e->index = index;
+  *out_element = e;
+  return 1;
+}
 
 int read_vector_element(FILE *fp, vector_element_t **out_element) {
   int elem_type;
@@ -155,9 +176,8 @@ int read_vector_element(FILE *fp, vector_element_t **out_element) {
 
   return __read_v_element(fp, elem_type, out_element);
 }
-  
 
-int read_vector(FILE *fp, vector_t **out_vec) {
+int read_vector(FILE *fp, enum vectype vtype, vector_t **out_vec) {
   /*
    * vector = n:u32[element count],n<elements encoding>
    */
@@ -179,11 +199,16 @@ int read_vector(FILE *fp, vector_t **out_vec) {
 
   for (tmp = 0, p = vec->elements; tmp < elem_count; tmp++) {
     vector_element_t *elem;
-    
-    if (!read_vector_element(fp, &elem))
-      /* XXX: free vec **/
-      return 0;
 
+    if (vtype == typed) {
+      if (!read_vector_element(fp, &elem))
+        /* XXX: free vec **/
+        return 0;
+    } else {
+      if (!read_vector_index(fp, &elem))
+        return 0;
+    }
+  
     if (!vec->elements) {
       vec->elements = elem;
       p = vec->elements;
@@ -198,71 +223,73 @@ int read_vector(FILE *fp, vector_t **out_vec) {
   
 }
 
-int read_type_section(FILE *fp, section_t **out_section) {
+int __read_a_section(FILE *fp, unsigned char type, module_t *m) {
   /*
-   * type section = u32 section length in bytes, vec(function_types)
+   * section = 1 byte <section type>, u32 <section length>, vec<section_specific_type>
    */
   u32 length;
-  section_t *type_s;
-  vector_t *functypes;
+  section_t *s, *tmp;
+  vector_t *v;
+  enum vectype vtype = typed;
+  
 
-  type_s = malloc(sizeof(section_t));
-  memset(type_s, 0, sizeof(section_t));
-
-  type_s->type = 0x1;
-  type_s->start_offset = ftell(fp) - 1; 
+  s = calloc(1, sizeof(section_t));
+  s->type = type;
+  s->start_offset = ftell(fp) - 1;
 
   if (!read_u32(fp, &length)) {
-    free(type_s);
+    free(s);
     return 0;
   }
 
-  type_s->section_length = length;
+  s->section_length = length;
 
-  if (!read_vector(fp, &functypes)) {
-    return 0;
+  if (s->type == 0x3) {
+    vtype = indices;
   }
 
-  type_s->vector = functypes;
-  *out_section = type_s;
-  
+  if (!read_vector(fp, vtype, &v))
+    return 0;
+
+  s->vector = v;
+
+  if (!m->sections)
+    m->sections = s;
+  else {
+    for (tmp = m->sections; tmp->next; tmp = tmp->next);
+    tmp->next = s;
+  }
   return 1;
 }
-    
+  
 
 int read_section(FILE *fp, module_t *m) {
   /*
    * sections = 1 byte section type, u32 section length in bytes, section contents
    */
   int type;
-  section_t *section, *tmp;
 
   type = read_one_byte(fp);
-  
-  switch(type) {
-  case EOF:
+  if (type == EOF) {
     fprintf(stderr, "could not read section type");
     return 0;
-  case 0x1:
-    if (!read_type_section(fp, &section))
-      return 0;
-    break;
-  default:
-    printf("NYI - section(%#x)\n", type);
-    break;
   }
 
-  if (!m->sections)
-    m->sections = section;
-  else {
-    for (tmp = m->sections; tmp->next; tmp = tmp->next);
-    tmp->next = section;
-  }
-  return 1;
+  return __read_a_section(fp, type, m);
 }
 
+
 int more_sections(FILE *fp) {
-  return 0;
+  /* is there more to read from the wasm file */
+  int c;
+
+  c = fgetc(fp);
+  if (c == EOF)
+    return 0;
+  else {
+    ungetc(c, fp);
+    return 1;
+  }
 }
 
 int main(int argc, char **argv) {

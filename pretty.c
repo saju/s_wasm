@@ -42,6 +42,15 @@ void print_types_section(section_t *sec, int indent) {
   }
 }
 
+void print_functions_section(section_t *sec, int indent) {
+  int i;
+  vector_element_t *p;
+  
+  for (i = 0, p = sec->vector->elements; i < sec->vector->num_elems; i++, p = p->next) {
+    printf("[%#09lx]%*sFunction at index %d matches Type section index %d\n", p->start_offset,
+           indent, "", i, p->index);
+  }
+}
 
 void pretty_print_module(module_t *m) {
   int indent = 0;
@@ -55,6 +64,8 @@ void pretty_print_module(module_t *m) {
            sec->section_length);
     if (sec->type == 0x1) {
       print_types_section(sec, indent+4);
+    } else if (sec->type == 0x3) {
+      print_functions_section(sec, indent+4);
     } else {
       printf("NYI - Section");
     }
