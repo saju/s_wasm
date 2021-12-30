@@ -101,12 +101,12 @@ int read_functype(FILE *fp, functype_t **out_func) {
   f->parameters = NULL;
   f->results = NULL;
 
-  if (!read_vector(fp, 1, &parameters))
+  if (!read_vector(fp, typed, &parameters))
     return 0;
 
   f->parameters = parameters;
 
-  if (!read_vector(fp, 1, &results))
+  if (!read_vector(fp, typed, &results))
     return 0;
 
   f->results = results;
