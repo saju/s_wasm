@@ -4,57 +4,58 @@
 #include <stdlib.h>
 
 #define S_WASM_INDEX 0x88
+#define VEC_DEFAULT_SIZE 0xA
 
 typedef uint32_t u32;
+typedef unsigned char byte;
 
-typedef struct _vector_element vector_element_t;
 typedef struct _vector vector_t;
-typedef struct _section section_t;
-
-enum vectype {typed, indices};
-
-typedef struct {
-  unsigned char foo; /* XXX: NYI */
-} resulttype_t;
 
 typedef struct {
   vector_t *parameters;
   vector_t *results;
 } functype_t;
 
-struct _vector_element {
-  size_t start_offset;
-  unsigned char type;
-  union {
-    functype_t *func;
-    u32 index;
-    /* other types are NYI */
-  };
-  vector_element_t *next;
-};
-
-struct _vector {
-  size_t start_offset;
-  u32 num_elems;
-  vector_element_t *elements; /* vector elements are a linked list */
-};
-
-
-struct _section {
-  unsigned char type;
-  size_t start_offset;
-  size_t section_length;
-  vector_t *vector;
-  section_t *next;
-};
-  
 typedef struct {
-  size_t magic_offset;
-  struct {
-    unsigned char num;
-    size_t offset;
-  } version;
-  section_t *sections; /* a singly linked list of sections */
+  byte type;
+  union {
+    u32 u_32;
+    /* more types NYI */
+  };
+} valtype_t;
+
+/*
+ * Vectors contain homogenous items. Every vector instance gets VEC_DEFAULT_SIZE bytes of storage, so 
+ * we don't have to dynamically allocate storage as we parse vectors. The vector payload will point into
+ * __storage unless nelts > VEC_DEFAULT_SIZE, in which case we will malloc() the storage.
+ */
+struct _vector {
+  u32 nelts;
+  byte type;
+  union {
+    functype_t **pfuncs;
+    u32 *pindices;
+    valtype_t *pvalues;
+    byte *pvaltypes;
+  };
+  void *__storage[VEC_DEFAULT_SIZE];
+};
+
+/*
+ * section = 1byte (type encoding) : u32 (length in bytes) : vec(<content>)
+ */
+typedef struct {
+  size_t offset;
+  size_t len;
+  byte type;
+  vector_t *v;
+} section_t;
+
+typedef struct {
+  unsigned int magic:1;
+  unsigned int version:1;
+  section_t *typesec;
+  section_t *funcsec;
 } module_t;
 
 

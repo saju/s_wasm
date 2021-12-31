@@ -1,8 +1,9 @@
 #include <string.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include "s_wasm.h"
 
-const char *get_type_str(unsigned char type) {
+const char *get_type_str(byte type) {
   switch (type) {
   case 0x7f:
     return "i32";
@@ -11,63 +12,41 @@ const char *get_type_str(unsigned char type) {
   }
 }
 
-void print_types_section(section_t *sec, int indent) {
+void print_resulttypes(vector_t *v) {
   int i;
-  vector_element_t *p, *m;
-  vector_t *params, *results;
-  
-  printf("[%#09lx]%*sTotal number of functions: %d\n", sec->vector->start_offset, indent, "",
-         sec->vector->num_elems);
-  for (i = 0, p = sec->vector->elements; i < sec->vector->num_elems; i++, p = p->next) {
-    printf("[%#09lx]%*sFunction(%d) has %d parameters and %d return values\n",  p->start_offset,
-           indent+4, "", i, p->func->parameters->num_elems, p->func->results->num_elems);
-    
-    params = p->func->parameters;
-    results = p->func->results;
-    
-    printf("[%#09lx]%*sParameter types: ", params->start_offset, indent+8, "");
 
-
-    for (m = params->elements; m; m = m->next) 
-      printf("%s ", get_type_str(m->type));
-
-    printf("\n");
-    
-    printf("[%#09lx]%*sResults types: ", results->start_offset, indent+8, "");
-
-    for (m = results->elements; m; m = m->next) 
-      printf("%s ", get_type_str(m->type));
-
-    printf("\n");
+  for (i = 0; i < v->nelts; i++) {
+    printf("%s ", get_type_str(v->pvaltypes[i]));
   }
 }
 
-void print_functions_section(section_t *sec, int indent) {
+void print_typesec(module_t *m, int indent) {
+  vector_t *v = m->typesec->v;
   int i;
-  vector_element_t *p;
   
-  for (i = 0, p = sec->vector->elements; i < sec->vector->num_elems; i++, p = p->next) {
-    printf("[%#09lx]%*sFunction at index %d matches Type section index %d\n", p->start_offset,
-           indent, "", i, p->index);
+  printf("[%09lx]%*s type section (%#lx bytes)\n", m->typesec->offset, indent, "", m->typesec->len);
+
+  for (i = 0; i < v->nelts; i++) {
+    vector_t *vf;
+    
+    printf("%*sFunction[%d]\n", indent+4, "", i);
+    
+    vf = v->pfuncs[i]->parameters;
+    printf("%*sparameters(%"PRIu32"): ", indent+8, "", vf->nelts);
+    print_resulttypes(vf); printf("\n");
+    
+    vf = v->pfuncs[i]->results;
+    printf("%*sresults(%"PRIu32"): ", indent+8, "", vf->nelts);
+    print_resulttypes(vf); printf("\n");
   }
 }
 
 void pretty_print_module(module_t *m) {
   int indent = 0;
-  section_t *sec;
+  
+  printf("[%09lx]%*s magic (\\0asm)\n", 0x0L, indent, "");
+  printf("[%09lx]%*s version (0x1)\n", 0x4L, indent, "");
 
-  printf("[%#09lx] magic header (\\0asm)\n", m->magic_offset);
-  printf("[%#09lx] version number (%#x)\n", m->version.offset, m->version.num);
-
-  for (sec = m->sections; sec; sec = sec->next) {
-    printf("[%#09lx] section begins, type %#x, size %#lx bytes\n", sec->start_offset, sec->type,
-           sec->section_length);
-    if (sec->type == 0x1) {
-      print_types_section(sec, indent+4);
-    } else if (sec->type == 0x3) {
-      print_functions_section(sec, indent+4);
-    } else {
-      printf("NYI - Section");
-    }
-  }
+  print_typesec(m, indent);
 }
+  
