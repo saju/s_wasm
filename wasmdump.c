@@ -96,30 +96,6 @@ int read_version(FILE *fp, module_t *m) {
   }
 }
 
-vector_t *read_vec_valtype1(FILE *fp) {
-  vector_t *v;
-  u32 i;
-
-  v = calloc(1, sizeof(vector_t));
-  v->type = 0x88;
-  v->nelts = read_u32(fp);
-
-  v->pvalues = ((v->nelts * sizeof(valtype_t)) <= VEC_DEFAULT_SIZE)
-    ? v->__storage
-    : calloc(v->nelts, sizeof(valtype_t));
-
-  for (i = 0; i < v->nelts; i++) {
-    byte val_type = read_one_byte(fp);
-    if (val_type == 0x7f) {
-      v->pvalues[i].type = 0x7f;
-      v->pvalues[i].u_32 = read_u32(fp);
-    } else {
-      printf("NYI --- valtype %x\n", val_type);
-    }
-  }
-  return v;
-}
-
 vector_t *read_vec_valtype(FILE *fp) {
   /*
    * Sec 5.3.1, 5.3.3 & 5.3.4
@@ -190,6 +166,24 @@ vector_t *read_vec_functype(FILE *fp) {
   return v;
 }
 
+vector_t *read_vec_indices(FILE *fp) {
+  vector_t *v;
+  u32 i;
+
+  v = calloc(1, sizeof(vector_t));
+
+  v->nelts = read_u32(fp);
+  v->type = 0x89;
+
+  VEC_SET_STORAGE(v, v->pindices, u32);
+
+  for (i = 0; i < v->nelts; i++) {
+    v->pindices[i] = read_u32(fp);
+  }
+
+  return v;
+}
+
 void read_section(FILE *fp, module_t *m) {
   /*
    * section𝑁(B) ::= 𝑁:byte size:u32 cont:B ⇒ cont (if size = ||B||) 
@@ -209,6 +203,16 @@ void read_section(FILE *fp, module_t *m) {
      */
     s->v = read_vec_functype(fp); 
     m->typesec = s;
+  } else if (s->type == 0x3) {
+    /*
+     * funcsec ::= 𝑥* :section3 (vec(typeidx)) ⇒ 𝑥*
+     *
+     * NB: this section ties the type section together with the code section.
+     * The index of this section matches the index of the code section, while
+     * the value of that corresponding index matches the index of the type section.
+     */
+    s->v = read_vec_indices(fp);
+    m->funcsec = s;
   }
 }
 
@@ -216,7 +220,9 @@ void read_section(FILE *fp, module_t *m) {
 int more_sections(FILE *fp) {
   /* is there more to read from the wasm file */
   int c;
-  return 0;
+
+  return 0; /* XXX: early exit module parsing since we have a lot of NYIs*/
+  
   c = fgetc(fp);
   if (c == EOF)
     return 0;
@@ -249,6 +255,7 @@ int main(int argc, char **argv) {
   read_version(fp, &m);
 
   do {
+    read_section(fp, &m);
     read_section(fp, &m);
   } while (more_sections(fp));
 

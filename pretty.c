@@ -41,12 +41,29 @@ void print_typesec(module_t *m, int indent) {
   }
 }
 
+void print_funcsec(module_t *m, int indent) {
+  vector_t *v = m->funcsec->v;
+  int i;
+
+  printf("[%09lx]%*s function section (%#lx bytes)\n", m->funcsec->offset, indent, "", m->funcsec->len);
+
+  for (i = 0; i < v->nelts; i++) {
+    printf("%*s index (%d) from code sec is mapped to type definition index %d\n",
+           indent+4, "", i, v->pindices[i]);
+  }
+}
+    
+    
+
 void pretty_print_module(module_t *m) {
   int indent = 0;
   
   printf("[%09lx]%*s magic (\\0asm)\n", 0x0L, indent, "");
   printf("[%09lx]%*s version (0x1)\n", 0x4L, indent, "");
 
-  print_typesec(m, indent);
+  if (m->typesec)
+    print_typesec(m, indent);
+  if (m->funcsec)
+    print_funcsec(m, indent);
 }
   
