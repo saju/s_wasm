@@ -52,6 +52,25 @@ void print_funcsec(module_t *m, int indent) {
            indent+4, "", i, v->pindices[i]);
   }
 }
+
+void print_exportssec(module_t *m, int indent) {
+  vector_t *v = m->exportssec->v;
+  int i;
+  
+  printf("[%09lx]%*s exports section (%#lx bytes)\n", m->exportssec->offset, indent, "",
+         m->exportssec->len);
+
+  for (i = 0; i < v->nelts; i++) {
+    export_t *exp = v->pexports[i];
+
+    if (exp->desc == 0x0) {
+      printf("%*s function (idx=%x), %.*s\n", indent+4, "", exp->idx, exp->name->len, exp->name->str);
+    } else {
+      printf("%*s export type(%#x) NYI (idx=%x), %.*s\n", indent+4, "", exp->desc, exp->idx,
+             exp->name->len, exp->name->str);
+    }
+  }
+}
     
     
 
@@ -65,5 +84,7 @@ void pretty_print_module(module_t *m) {
     print_typesec(m, indent);
   if (m->funcsec)
     print_funcsec(m, indent);
+  if (m->exportssec)
+    print_exportssec(m, indent);
 }
   

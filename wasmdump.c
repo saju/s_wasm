@@ -96,6 +96,18 @@ int read_version(FILE *fp, module_t *m) {
   }
 }
 
+utf8_t *read_name(FILE *fp) {
+  utf8_t *name;
+  u32 size;
+
+  size = read_u32(fp);
+  name = malloc(sizeof(utf8_t));
+  name->str = malloc(size);
+  name->len = size;
+  read_many_bytes(fp, size, (byte *)name->str);
+  return name;
+}
+
 vector_t *read_vec_valtype(FILE *fp) {
   /*
    * Sec 5.3.1, 5.3.3 & 5.3.4
@@ -149,6 +161,24 @@ functype_t *read_functype(FILE *fp) {
   return f;
 }
 
+export_t *read_export(FILE *fp) {
+  /*
+   * export     ::= nm:name 𝑑:exportdesc       ⇒ {name nm , desc 𝑑} 
+   * exportdesc ::= 0x00 𝑥:funcidx             ⇒ func 𝑥
+   *             |  0x01 𝑥:tableidx            ⇒ table 𝑥
+   *             |  0x02 𝑥:memidx              ⇒ mem 𝑥
+   *             |  0x03 𝑥:globalidx           ⇒ global 𝑥
+   */
+  export_t *e;
+
+  e = calloc(1, sizeof(export_t));
+  e->name = read_name(fp);
+  e->desc = read_one_byte(fp);
+  e->idx = read_u32(fp);
+
+  return e;
+}
+  
 vector_t *read_vec_functype(FILE *fp) {
   vector_t *v;
   u32 i;
@@ -184,6 +214,30 @@ vector_t *read_vec_indices(FILE *fp) {
   return v;
 }
 
+
+vector_t *read_vec_exports(FILE *fp) {
+  /*
+   * export     ::= nm:name 𝑑:exportdesc       ⇒ {name nm , desc 𝑑} 
+   * exportdesc ::= 0x00 𝑥:funcidx             ⇒ func 𝑥
+   *             |  0x01 𝑥:tableidx            ⇒ table 𝑥
+   *             |  0x02 𝑥:memidx              ⇒ mem 𝑥
+   *             |  0x03 𝑥:globalidx           ⇒ global 𝑥
+   */
+  vector_t *v;
+  u32 i;
+
+  v = calloc(1, sizeof(vector_t));
+  v->nelts = read_u32(fp);
+  v->type = 0x7;
+
+  VEC_SET_STORAGE(v, v->pexports, export_t);
+
+  for (i = 0; i < v->nelts; i++) {
+    v->pexports[i] = read_export(fp);
+  }
+  return v;
+}
+
 void read_section(FILE *fp, module_t *m) {
   /*
    * section𝑁(B) ::= 𝑁:byte size:u32 cont:B ⇒ cont (if size = ||B||) 
@@ -213,7 +267,19 @@ void read_section(FILE *fp, module_t *m) {
      */
     s->v = read_vec_indices(fp);
     m->funcsec = s;
-  } else {
+  } else if (s->type == 0x7) {
+    /*
+     * exportsec  ::= ex*:section7 (vec(export)) ⇒ ex*
+     * export     ::= nm:name 𝑑:exportdesc       ⇒ {name nm , desc 𝑑} 
+     * exportdesc ::= 0x00 𝑥:funcidx             ⇒ func 𝑥
+     *             |  0x01 𝑥:tableidx            ⇒ table 𝑥
+     *             |  0x02 𝑥:memidx              ⇒ mem 𝑥
+     *             |  0x03 𝑥:globalidx           ⇒ global 𝑥
+     */
+    s->v = read_vec_exports(fp);
+    m->exportssec = s;
+  }
+  else {
     /*
      *
      * NYI section
