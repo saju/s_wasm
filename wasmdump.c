@@ -213,28 +213,22 @@ void read_section(FILE *fp, module_t *m) {
      */
     s->v = read_vec_indices(fp);
     m->funcsec = s;
+  } else {
+    /*
+     *
+     * NYI section
+     */
+    s->v = NULL;
+    printf("Section type(%#x), size(%#lx bytes) is NYI ... skipping\n", s->type, s->len);
+    fseek(fp, s->len, SEEK_CUR);
   }
 }
 
-
-int more_sections(FILE *fp) {
-  /* is there more to read from the wasm file */
-  int c;
-
-  return 0; /* XXX: early exit module parsing since we have a lot of NYIs*/
-  
-  c = fgetc(fp);
-  if (c == EOF)
-    return 0;
-  else {
-    ungetc(c, fp);
-    return 1;
-  }
-}
 
 int main(int argc, char **argv) {
   module_t m;
   FILE *fp;
+  size_t file_size;
 
 
   fp = fopen(argv[1], "r");
@@ -244,6 +238,10 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  fseek(fp, 0L, SEEK_END);
+  file_size = ftell(fp);
+  fseek(fp, 0L, SEEK_SET);
+  
   /* wasm module structure 
    * 4 bytes of magic
    * 4 bytes of version
@@ -256,8 +254,7 @@ int main(int argc, char **argv) {
 
   do {
     read_section(fp, &m);
-    read_section(fp, &m);
-  } while (more_sections(fp));
+  } while (ftell(fp) < file_size);
 
   pretty_print_module(&m);
 
