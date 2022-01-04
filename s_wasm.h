@@ -12,17 +12,12 @@ typedef unsigned char byte;
 typedef struct _vector vector_t;
 
 typedef struct {
-  char *str;
-  u32 len;
-} utf8_t;
-
-typedef struct {
   vector_t *parameters;
   vector_t *results;
 } functype_t;
 
 typedef struct {
-  utf8_t *name;
+  byte *name;
   byte desc;
   u32 idx;
 } export_t;

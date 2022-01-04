@@ -96,18 +96,6 @@ int read_version(FILE *fp, module_t *m) {
   }
 }
 
-utf8_t *read_name(FILE *fp) {
-  utf8_t *name;
-  u32 size;
-
-  size = read_u32(fp);
-  name = malloc(sizeof(utf8_t));
-  name->str = malloc(size);
-  name->len = size;
-  read_many_bytes(fp, size, (byte *)name->str);
-  return name;
-}
-
 vector_t *read_vec_valtype(FILE *fp) {
   /*
    * Sec 5.3.1, 5.3.3 & 5.3.4
@@ -170,9 +158,16 @@ export_t *read_export(FILE *fp) {
    *             |  0x03 𝑥:globalidx           ⇒ global 𝑥
    */
   export_t *e;
+  u32 size;
 
   e = calloc(1, sizeof(export_t));
-  e->name = read_name(fp);
+
+  size = read_u32(fp);
+
+  e->name = malloc(size + 1);
+  e->name[size] = '\0';
+  read_many_bytes(fp, size, e->name);
+  
   e->desc = read_one_byte(fp);
   e->idx = read_u32(fp);
 

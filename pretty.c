@@ -64,10 +64,9 @@ void print_exportssec(module_t *m, int indent) {
     export_t *exp = v->pexports[i];
 
     if (exp->desc == 0x0) {
-      printf("%*s function (idx=%x), %.*s\n", indent+4, "", exp->idx, exp->name->len, exp->name->str);
+      printf("%*s function (idx=%x), %s\n", indent+4, "", exp->idx, exp->name);
     } else {
-      printf("%*s export type(%#x) NYI (idx=%x), %.*s\n", indent+4, "", exp->desc, exp->idx,
-             exp->name->len, exp->name->str);
+      printf("%*s export type(%#x) NYI (idx=%x), %s\n", indent+4, "", exp->desc, exp->idx, exp->name);
     }
   }
 }
