@@ -4,10 +4,10 @@
 #include <stdarg.h>
 #include "s_wasm.h"
 
-#define VEC_SET_STORAGE(v, ptr, type) {                         \
+#define VEC_SET_STORAGE(v, ptr, type) {                   \
  ptr = v->nelts * sizeof(type) <= VEC_DEFAULT_SIZE        \
-     ? v->__storage                                           \
-     : calloc(v->nelts, sizeof(type));                          \
+     ? v->__storage                                       \
+     : calloc(v->nelts, sizeof(type));                    \
  }
 
 void bye(char *msg, ...) {
@@ -211,13 +211,6 @@ vector_t *read_vec_indices(FILE *fp) {
 
 
 vector_t *read_vec_exports(FILE *fp) {
-  /*
-   * export     ::= nm:name 𝑑:exportdesc       ⇒ {name nm , desc 𝑑} 
-   * exportdesc ::= 0x00 𝑥:funcidx             ⇒ func 𝑥
-   *             |  0x01 𝑥:tableidx            ⇒ table 𝑥
-   *             |  0x02 𝑥:memidx              ⇒ mem 𝑥
-   *             |  0x03 𝑥:globalidx           ⇒ global 𝑥
-   */
   vector_t *v;
   u32 i;
 
@@ -265,11 +258,6 @@ void read_section(FILE *fp, module_t *m) {
   } else if (s->type == 0x7) {
     /*
      * exportsec  ::= ex*:section7 (vec(export)) ⇒ ex*
-     * export     ::= nm:name 𝑑:exportdesc       ⇒ {name nm , desc 𝑑} 
-     * exportdesc ::= 0x00 𝑥:funcidx             ⇒ func 𝑥
-     *             |  0x01 𝑥:tableidx            ⇒ table 𝑥
-     *             |  0x02 𝑥:memidx              ⇒ mem 𝑥
-     *             |  0x03 𝑥:globalidx           ⇒ global 𝑥
      */
     s->v = read_vec_exports(fp);
     m->exportssec = s;
