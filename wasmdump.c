@@ -173,6 +173,58 @@ export_t *read_export(FILE *fp) {
 
   return e;
 }
+
+code_t *read_code(FILE *fp) {
+  /*
+   * code := size:u32 code:func => code
+   * func := (t*)*:vec(locals) e:expr => concat((t*)*),e*
+   * locals := n:u32 t:valtype => t^n
+   */
+  code_t *code;
+  byte type;
+  u32 size, num_local_types;
+
+  code = calloc(1, sizeof(code_t));
+
+  code->size = read_u32(fp);
+  num_local_types = read_u32(fp);
+
+  while (num_local_types--) {
+    size = read_u32(fp);
+    type = read_one_byte(fp);
+
+    switch (type) {
+    case 0x70:
+      code->num_funcref_locals = size;
+      break;
+    case 0x6f:
+      code->num_externref_locals = size;
+      break;
+    case 0x7b:
+      code->num_vec_locals = size;
+      break;
+    case 0x7c:
+      code->num_f64_locals = size;
+      break;
+    case 0x7d:
+      code->num_f32_locals = size;
+      break;
+    case 0x7e:
+      code->num_i64_locals = size;
+      break;
+    case 0x7f:
+      code->num_i32_locals = size;
+      break;
+    default:
+      bye("unexpected locals type(%#x)\n", type);
+    }
+  }
+
+  /* XXX - we are not parsing in any instructions */
+  while (read_one_byte(fp) != 0x0b) {}
+  return code;
+}
+  
   
 vector_t *read_vec_functype(FILE *fp) {
   vector_t *v;
@@ -226,6 +278,23 @@ vector_t *read_vec_exports(FILE *fp) {
   return v;
 }
 
+
+vector_t *read_vec_code(FILE *fp) {
+  vector_t *v;
+  u32 i;
+
+  v = calloc(1, sizeof(vector_t));
+  v->nelts = read_u32(fp);
+  v->type  = 0xa;
+
+  VEC_SET_STORAGE(v, v->pcodes, code_t);
+
+  for (i = 0; i < v->nelts; i++) {
+    v->pcodes[i] = read_code(fp);
+  }
+  return v;
+}
+
 void read_section(FILE *fp, module_t *m) {
   /*
    * section𝑁(B) ::= 𝑁:byte size:u32 cont:B ⇒ cont (if size = ||B||) 
@@ -257,12 +326,17 @@ void read_section(FILE *fp, module_t *m) {
     m->funcsec = s;
   } else if (s->type == 0x7) {
     /*
-     * exportsec  ::= ex*:section7 (vec(export)) ⇒ ex*
+     * exportsec ::= ex* : section7 (vec(export)) ⇒ ex*
      */
     s->v = read_vec_exports(fp);
     m->exportssec = s;
-  }
-  else {
+  } else if (s->type == 0xa) {
+    /*
+     * codesec ::= code* : section10(vec(code)) ⇒ code*
+     */
+    s->v = read_vec_code(fp);
+    m->codesec = s;
+  } else {
     /*
      *
      * NYI section

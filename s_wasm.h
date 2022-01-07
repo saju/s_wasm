@@ -23,6 +23,17 @@ typedef struct {
 } export_t;
 
 typedef struct {
+  u32 size;
+  u32 num_i32_locals;
+  u32 num_i64_locals;
+  u32 num_f32_locals;
+  u32 num_f64_locals;
+  u32 num_funcref_locals;
+  u32 num_externref_locals;
+  u32 num_vec_locals;
+} code_t;
+
+typedef struct {
   byte type;
   union {
     u32 u_32;
@@ -41,6 +52,7 @@ struct _vector {
   union {
     functype_t **pfuncs;
     export_t **pexports;
+    code_t **pcodes;
     u32 *pindices;
     valtype_t *pvalues;
     byte *pvaltypes;
@@ -64,6 +76,7 @@ typedef struct {
   section_t *typesec;
   section_t *funcsec;
   section_t *exportssec;
+  section_t *codesec;
 } module_t;
 
 
