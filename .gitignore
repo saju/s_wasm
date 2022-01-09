@@ -1,0 +1,6 @@
+.DS_Store
+wasmdump
+test/*.wasm
+*.png
+*~
+*.dSYM/

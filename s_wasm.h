@@ -2,12 +2,10 @@
 #define __S_WASM_H__
 
 #include <stdlib.h>
+#include "wasm_types.h"
 
 #define S_WASM_INDEX 0x88
 #define VEC_DEFAULT_SIZE 0xA
-
-typedef uint32_t u32;
-typedef unsigned char byte;
 
 typedef struct _vector vector_t;
 
@@ -22,6 +20,7 @@ typedef struct {
   u32 idx;
 } export_t;
 
+
 typedef struct {
   u32 size;
   u32 num_i32_locals;
@@ -31,6 +30,7 @@ typedef struct {
   u32 num_funcref_locals;
   u32 num_externref_locals;
   u32 num_vec_locals;
+  instr_t *instr;
 } code_t;
 
 typedef struct {
@@ -79,7 +79,10 @@ typedef struct {
   section_t *codesec;
 } module_t;
 
+byte read_one_byte(FILE *fp);
 
 void pretty_print_module(module_t *);
+
+instr_t *read_instructions(FILE *fp);
 
 #endif /* __S_WASM_H__ */

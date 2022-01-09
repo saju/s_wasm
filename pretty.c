@@ -70,6 +70,23 @@ void print_exportssec(module_t *m, int indent) {
     }
   }
 }
+
+void print_codesec(module_t *m, int indent) {
+  vector_t *v = m->codesec->v;
+  int i;
+
+  printf("[%09lx]%*s code section (%#lx bytes)\n", m->codesec->offset, indent, "", m->codesec->len);
+
+  for (i = 0; i < v->nelts; i++) {
+    code_t *code = v->pcodes[i];
+    printf("%*s func %d locals: i32(%d), i64(%d), f32(%d), f64(%d), funcref(%d), "
+           "externref(%d), vector(%d)\n", indent+4, "", i, code->num_i32_locals, code->num_i64_locals,
+           code->num_f32_locals, code->num_f64_locals, code->num_funcref_locals,
+           code->num_externref_locals, code->num_vec_locals);
+  }
+}
+    
+    
     
     
 
@@ -85,5 +102,7 @@ void pretty_print_module(module_t *m) {
     print_funcsec(m, indent);
   if (m->exportssec)
     print_exportssec(m, indent);
+  if (m->codesec)
+    print_codesec(m, indent);
 }
   

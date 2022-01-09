@@ -220,8 +220,7 @@ code_t *read_code(FILE *fp) {
     }
   }
 
-  /* XXX - we are not parsing in any instructions */
-  while (read_one_byte(fp) != 0x0b) {}
+  code->instr = read_instructions(fp);
   return code;
 }
   
