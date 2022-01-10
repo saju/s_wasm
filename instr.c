@@ -4,5 +4,5 @@
 
 instr_t *read_instructions(FILE *fp) {
   while (read_one_byte(fp) != 0x0b) {};
-  return &table[0];
+  return NULL;
 }

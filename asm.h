@@ -2,9 +2,14 @@
 
 #include "wasm_types.h"
 
+
 #define NUMERIC 1
 
-#define NUMERIC_CONST 1
+#define I32_CONST 1
+#define I64_CONST 2
+#define F32_CONST 3
+#define F64_CONST 4
+
 
 typedef struct {
   byte opcode;
@@ -27,7 +32,6 @@ typedef struct {
 } instr_mem_t;
 
 typedef struct {
-  byte opcode;
   byte subtype;
   union { /* we are wasting a ton of space here: XXX */
     i32 i32_const;
@@ -43,21 +47,17 @@ typedef struct {
 } instr_vec_t;
 
 struct _instr {
+  byte opcode;
   byte type;
+  const char *desc;
   union {
-  instr_control_t ctrl;
-  instr_ref_t ref;
-  instr_mem_t mem;
-  instr_num_t num;
-  instr_vec_t vec;
+    instr_control_t ctrl;
+    instr_ref_t ref;
+    instr_mem_t mem;
+    instr_num_t num;
+    instr_vec_t vec;
   };
 };
 
-instr_t table[] = {
-  {NUMERIC, .num = {0x42, NUMERIC_CONST}}, /* i32.const */
-  {NUMERIC, .num = {0x43, NUMERIC_CONST}}, /* i64.const */
-  {NUMERIC, .num = {0x44, NUMERIC_CONST}}, /* f32.const */
-  {NUMERIC, .num = {0x45, NUMERIC_CONST}}, /* f64.const */
-  /* NYI */
-};
+#include "opcodes.h"
 
